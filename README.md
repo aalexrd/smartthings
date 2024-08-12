@@ -2,11 +2,11 @@
 
 __A Home Assistant custom Integration for SmartThings.__
 
-### **Usage and setup [Documentation](https://github.com/contemplator1998/smartthings)**
+### **Usage and setup [Documentation](https://github.com/bakernigel/smartthings)**
 
 <br>
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?category=integration&repository=smartthings&owner=contemplator1998)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?category=integration&repository=smartthings&owner=bakernigel)
 
 
 
