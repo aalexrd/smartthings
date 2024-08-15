@@ -1,10 +1,12 @@
 """Support for sensors through the SmartThings cloud API."""
 from __future__ import annotations
 
+import logging
+
 from collections import namedtuple
 from collections.abc import Sequence
 
-from pysmartthings import Attribute, Capability
+
 from pysmartthings.device import DeviceEntity
 
 from homeassistant.components.sensor import (
@@ -31,11 +33,17 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import SmartThingsEntity
+
+from . import Capability
+from . import Attribute
+
 from .const import DATA_BROKERS, DOMAIN
 
 Map = namedtuple(
     "Map", "attribute name default_unit device_class state_class entity_category"
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
     Capability.activity_lighting_mode: [
@@ -303,17 +311,35 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
             None,
             None,
             None,
-            EntityCategory.DIAGNOSTIC,
+            None,
         )
     ],
     Capability.oven_operating_state: [
         Map(Attribute.machine_state, "Oven Machine State", None, None, None, None),
         Map(Attribute.oven_job_state, "Oven Job State", None, None, None, None),
         Map(Attribute.completion_time, "Oven Completion Time", None, None, None, None),
+        Map(Attribute.progress, "Progress", None, None, None, None), 
+        Map(Attribute.operation_time, "Cook Time", None, None, None, None),                
     ],
     Capability.oven_setpoint: [
         Map(Attribute.oven_setpoint, "Oven Set Point", None, None, None, None)
     ],
+
+    Capability.door_state: [
+        Map(Attribute.door_state, "Oven Door State", None, None, None, None)
+    ],
+    
+    Capability.oven_meat_probe: [
+        Map(Attribute.temperature_set_point, "Probe Temperature Setpoint", None, None, None, None),
+        Map(Attribute.temperature, "Probe Temperature", None, None, None, None),
+        Map(Attribute.status, "Probe Status", None, None, None, None),
+    ],                      
+
+#    Capability.oven_light: [
+#        Map(Attribute.brightness_level, "Oven Light", None, None, None, None)
+#    ],    
+
+
     Capability.power_consumption_report: [],
     Capability.power_meter: [
         Map(
@@ -410,7 +436,7 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
         Map(
             Attribute.temperature,
             "Temperature Measurement",
-            None,
+            UnitOfTemperature.FAHRENHEIT,
             SensorDeviceClass.TEMPERATURE,
             SensorStateClass.MEASUREMENT,
             None,
@@ -420,7 +446,7 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
         Map(
             Attribute.cooling_setpoint,
             "Thermostat Cooling Setpoint",
-            None,
+            UnitOfTemperature.FAHRENHEIT,
             SensorDeviceClass.TEMPERATURE,
             None,
             None,
@@ -533,7 +559,12 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
             None,
         ),
     ],
+    Capability.water_filter: [
+        Map(Attribute.water_filter_status, "Water Filter Status", None, None, None, None),
+        Map(Attribute.water_filter_usage, "Water Filter Usage", None, None, None, None),
+    ],    
 }
+
 
 UNITS = {
     "C": UnitOfTemperature.CELSIUS,
@@ -560,10 +591,71 @@ async def async_setup_entry(
     broker = hass.data[DOMAIN][DATA_BROKERS][config_entry.entry_id]
     entities: list[SensorEntity] = []
     for device in broker.devices.values():
+        _LOGGER.warning(
+                  "NB device loop: %s: %s ",
+                   device.device_id,
+                   device.components,
+        )
+        for capability in broker.get_assigned(device.device_id, "sensor"):
+            if capability == Capability.three_axis:
+                entities.extend(
+                    [
+                        SmartThingsThreeAxisSensor(device, "main", index)
+                        for index in range(len(THREE_AXIS_NAMES))
+                    ]
+                )
+            elif capability == Capability.power_consumption_report:
+                entities.extend(
+                    [
+                        SmartThingsPowerConsumptionSensor(device, "main", report_name)
+                        for report_name in POWER_CONSUMPTION_REPORT_NAMES
+                    ]
+                )
+            else:
+                maps = CAPABILITY_TO_SENSORS[capability]
+                entities.extend(
+                    [
+                        SmartThingsSensor(
+                            device,
+                            "main",
+                            m.attribute,
+                            m.name,
+                            m.default_unit,
+                            m.device_class,
+                            m.state_class,
+                            m.entity_category,
+                        )
+                        for m in maps
+                    ]
+                )
+                                              
         device_capabilities_for_sensor = broker.get_assigned(device.device_id, "sensor")
+
+        _LOGGER.warning(
+                  "NB device_capabilities_for_sensor: %s",
+                   device_capabilities_for_sensor,
+        )     
+                              
         for component in device.components:
+            _LOGGER.warning(
+                  "NB component loop: %s: %s ",
+                   device.device_id,
+                   component,
+            )                        
             for capability in device.components[component]:
+                _LOGGER.warning(
+                  "NB capability loop: %s: %s : %s ",
+                   device.device_id,
+                   component,
+                   capability,
+                )                
                 if capability not in device_capabilities_for_sensor:
+                    _LOGGER.warning(
+                        "NB capability not found: %s: %s : %s ",
+                        device.device_id,
+                        component,
+                        capability,
+                    )                
                     continue
                 if capability == Capability.three_axis:
                     entities.extend(
@@ -622,7 +714,7 @@ async def async_setup_entry(
 
 
 def get_capabilities(capabilities: Sequence[str]) -> Sequence[str] | None:
-    """Return all capabilities supported if minimum required are present."""
+    """Return all capabilities supported if minimum required are present. Called from __init__py"""
     return [
         capability for capability in CAPABILITY_TO_SENSORS if capability in capabilities
     ]
@@ -646,12 +738,25 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
         super().__init__(device)
         self._component = component
         self._attribute = attribute
+                    
+        _LOGGER.warning(
+                  "NB def __init__ device: %s component: %s %s ",
+                   device.device_id,
+                   component,
+                   attribute,
+        )                
         if self._component == "main":
             self._attr_name = f"{device.label} {name}"
-            self._attr_unique_id = f"{device.device_id}.{attribute}"
-        else:
+            if name == "Probe Temperature":
+                self._attr_unique_id = f"{device.device_id}.{"probe"}.{attribute}"
+            else:    
+                self._attr_unique_id = f"{device.device_id}.{attribute}"
+        else:            
             self._attr_name = f"{device.label} {component} {name}"
-            self._attr_unique_id = f"{device.device_id}.{component}.{attribute}"
+            if name == "Probe Temperature":
+                self._attr_unique_id = f"{device.device_id}.{component}.{"probe"}.{attribute}"
+            else:    
+                self._attr_unique_id = f"{device.device_id}.{component}.{attribute}"
         self._attr_device_class = device_class
         self._default_unit = default_unit
         self._attr_state_class = state_class
@@ -660,6 +765,10 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the state of the sensor."""
+        _LOGGER.debug(
+                  "NB Return the state component: %s ",
+                   self._component,
+        )                        
         if self._component == "main":
             value = self._device.status.attributes[self._attribute].value
         else:
@@ -668,9 +777,15 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
                 .attributes[self._attribute]
                 .value
             )
+            
+        _LOGGER.warning(
+                  "NB Return the value for attribute: %s : %s ",
+                   self._attr_name,
+                   value,
+        )                                    
 
         if self.device_class != SensorDeviceClass.TIMESTAMP:
-            return value
+            return value    
 
         return dt_util.parse_datetime(value)
 
@@ -678,6 +793,12 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
     def native_unit_of_measurement(self):
         """Return the unit this state is expressed in."""
         unit = self._device.status.attributes[self._attribute].unit
+        _LOGGER.debug(
+                  "NB Return the native_unit_of_measurement: %s : %s : %s ",
+                   unit,
+                   self._component,
+                   self._attr_name,
+        )                       
         return UNITS.get(unit, unit) if unit else self._default_unit
 
 

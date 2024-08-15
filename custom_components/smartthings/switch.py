@@ -1,6 +1,8 @@
 """Support for switches through the SmartThings cloud API."""
 from __future__ import annotations
 
+import logging
+
 from collections.abc import Sequence
 from typing import Any
 
@@ -14,6 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import SmartThingsEntity
 from .const import DATA_BROKERS, DOMAIN
 
+_LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -22,29 +25,109 @@ async def async_setup_entry(
 ) -> None:
     """Add switches for a config entry."""
     broker = hass.data[DOMAIN][DATA_BROKERS][config_entry.entry_id]
-    switches = []
+    
+    _LOGGER.warning(
+                  "NB looking for switches",
+    )        
+    
+#    async_add_entities(
+#        SmartThingsSwitch(device,"main", "switch")
+#        for device in broker.devices.values()
+#        if broker.any_assigned(device.device_id, "switch")
+#    )
+    
+    myswitches = []
+    
     for device in broker.devices.values():
+        _LOGGER.warning(
+                 "NB first switch device: %s components: %s",
+                  device.device_id,
+                  device.components,
+        )
+        if broker.any_assigned(device.device_id, "switch"): 
+            components = device.components
+            capabilities = device.capabilities
+            _LOGGER.warning(
+                 "NB about to add_entities switch for device : %s com=%s cap= %s",
+                  device.device_id,
+                  components,
+                  capabilities,
+            ) 
+            if "samsungce.lamp" in capabilities:
+                _LOGGER.warning(
+                  "NB found samsungce.lamp in main section ",
+                )
+                myswitches.append(SmartThingsSwitch(device,"main", "brightnessLevel"))
+            else:                  
+                myswitches.append(SmartThingsSwitch(device,"main", "switch"))
+            
+    async_add_entities(myswitches)   
+#            
+#        if broker.any_assigned(device.device_id, "samsungce.lamp"): 
+#            _LOGGER.warning(
+#                  "NB found any_assigned samsungce.lamp ",
+#            )        
+#            async_add_entities(SmartThingsSwitch(device,"main", "switch"))    
+    
+    
+    switches = []
+    for device in broker.devices.values():              
         for component in device.components:
             if "switch" in device.components[component]:
-                switches.append(SmartThingsSwitch(device, component))
+                switches.append(SmartThingsSwitch(device, component, "switch"))
+                
+            capability = device.components[component]
+            
+            _LOGGER.warning(
+                  "NB switch component: %s capability : %s ",
+                  component,
+                  capability,
+            )
+            
+            if "samsungce.lamp" in capability:
+                switches.append(SmartThingsSwitch(device, component, "brightnessLevel"))
+                _LOGGER.warning(
+                  "NB found samsungce.lamp ",
+                )
+                
+
+                 
     async_add_entities(switches)
 
 
 def get_capabilities(capabilities: Sequence[str]) -> Sequence[str] | None:
     """Return all capabilities supported if minimum required are present."""
+
+    _LOGGER.warning(
+                  "NB switch get_capabilities: %s ",
+                  capabilities,
+    )
+    
+    
     # Must be able to be turned on/off.
     if Capability.switch in capabilities:
+        _LOGGER.warning(
+                  "NB switch found switch in capabilities: %s ",
+                  capabilities,
+        )
         return [Capability.switch, Capability.energy_meter, Capability.power_meter]
+    if Capability.oven_light in capabilities:
+        _LOGGER.warning(
+                  "NB switch found oven_light in capabilities: %s ",
+                  capabilities,
+        )
+        return [Capability.oven_light]    
     return None
 
 
 class SmartThingsSwitch(SmartThingsEntity, SwitchEntity):
     """Define a SmartThings switch."""
 
-    def __init__(self, device, component):
+    def __init__(self, device, component, attribute):
         """Init the class."""
         super().__init__(device)
         self._component = component
+        self._attribute = attribute
 
     @property
     def name(self) -> str:
@@ -62,14 +145,35 @@ class SmartThingsSwitch(SmartThingsEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
-        await self._device.switch_off(set_status=True, component_id=self._component)
+        
+        if self._attribute == "brightnessLevel":
+            _LOGGER.warning(
+                  "NB switch async_turn_off samsungce.lamp: component = %s attribute: %s ",
+                   self._component,
+                   self._attribute,                  
+            )
+            await self._device.set_brightnesslevel(level="off", set_status=True, component_id=self._component)
+        else:                    
+            await self._device.switch_off(set_status=True, component_id=self._component)
+            
         # State is set optimistically in the command above, therefore update
         # the entity state ahead of receiving the confirming push updates
         self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
-        await self._device.switch_on(set_status=True, component_id=self._component)
+        
+        if self._attribute == "brightnessLevel":
+            _LOGGER.warning(
+                  "NB switch async_turn_on samsungce.lamp: component = %s attribute: %s ",
+                   self._component,
+                   self._attribute,                  
+            )
+            await self._device.set_brightnesslevel(level="high", set_status=True, component_id=self._component)
+        else:            
+            await self._device.switch_on(set_status=True, component_id=self._component)
+            
+            
         # State is set optimistically in the command above, therefore update
         # the entity state ahead of receiving the confirming push updates
         self.async_write_ha_state()
@@ -77,6 +181,43 @@ class SmartThingsSwitch(SmartThingsEntity, SwitchEntity):
     @property
     def is_on(self) -> bool:
         """Return true if switch is on."""
-        if self._component == "main":
-            return self._device.status.switch
-        return self._device.status.components[self._component].switch
+        _LOGGER.warning(
+                  "NB switch is_on first: component = %s attrib: %s status: %s",
+                   self._component,
+                   self._attribute,
+                   self._device.status.switch,
+        )                           
+         
+        if self._component == "main":        
+            if self._attribute == "brightnessLevel":
+            
+                value = self._device.status.attributes[self._attribute].value
+
+                _LOGGER.warning(
+                     "NB switch is_on main value = %s",
+                     value,
+                )              
+                if value == "high":    
+                    return True
+                else:
+                    return False                
+            else:
+                return self._device.status.switch
+  
+        value = (
+            self._device.status.components[self._component]
+            .attributes[self._attribute]
+            .value
+        )
+        _LOGGER.warning(
+                  "NB switch is_on second: component = %s status: %s : %s: %s",
+                   self._component,
+                   self._device.status.switch,
+                   self._device.status.components[self._component].switch,
+                   value,
+        )             
+            
+        if self._device.status.components[self._component].attributes[self._attribute].value == "high":    
+            return True            
+            
+        return self._device.status.components[self._component].switch         
