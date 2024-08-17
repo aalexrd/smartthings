@@ -12,6 +12,6 @@ __A Home Assistant custom Integration for SmartThings.__
 
 ## __𝐅𝐞𝐚𝐭𝐮𝐫𝐞𝐬__
 - Fixed missing sensors & controls 
-- All available capabilities are available
+- More capabilities are available than core Smartthings integration
 
-Based on: https://github.com/home-assistant/core/pull/99924
+Based on: https://github.com/veista/smartthings
