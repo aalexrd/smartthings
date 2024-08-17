@@ -13,7 +13,6 @@ from pysmartapp import Dispatcher, SmartAppManager
 from pysmartapp.const import SETTINGS_APP_ID
 from pysmartthings import (
     APP_TYPE_WEBHOOK,
-    CAPABILITIES,
     CLASSIFICATION_AUTOMATION,
     App,
     AppEntity,
@@ -25,6 +24,9 @@ from pysmartthings import (
     Subscription,
     SubscriptionEntity,
 )
+
+from .capability import CAPABILITIES
+
 
 from homeassistant.components import cloud, webhook
 from homeassistant.const import CONF_WEBHOOK_ID

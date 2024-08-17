@@ -322,7 +322,7 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
         Map(Attribute.operation_time, "Cook Time", None, None, None, None),                
     ],
     Capability.oven_setpoint: [
-        Map(Attribute.oven_setpoint, "Oven Set Point", None, None, None, None)
+        Map(Attribute.oven_setpoint, "Oven Set Point", UnitOfTemperature.FAHRENHEIT, SensorDeviceClass.TEMPERATURE, None, None)
     ],
 
     Capability.door_state: [
@@ -330,8 +330,8 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
     ],
     
     Capability.oven_meat_probe: [
-        Map(Attribute.temperature_set_point, "Probe Temperature Setpoint", None, None, None, None),
-        Map(Attribute.temperature, "Probe Temperature", None, None, None, None),
+        Map(Attribute.temperature_set_point, "Probe Temperature Setpoint", None, SensorDeviceClass.TEMPERATURE, None, None),
+        Map(Attribute.temperature, "Probe Temperature", None, SensorDeviceClass.TEMPERATURE, None, None),
         Map(Attribute.status, "Probe Status", None, None, None, None),
     ],                      
 
@@ -561,7 +561,7 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
     ],
     Capability.water_filter: [
         Map(Attribute.water_filter_status, "Water Filter Status", None, None, None, None),
-        Map(Attribute.water_filter_usage, "Water Filter Usage", None, None, None, None),
+        Map(Attribute.water_filter_usage, "Water Filter Usage", PERCENTAGE, None, SensorStateClass.MEASUREMENT, None),
     ],    
 }
 
@@ -591,7 +591,7 @@ async def async_setup_entry(
     broker = hass.data[DOMAIN][DATA_BROKERS][config_entry.entry_id]
     entities: list[SensorEntity] = []
     for device in broker.devices.values():
-        _LOGGER.warning(
+        _LOGGER.debug(
                   "NB device loop: %s: %s ",
                    device.device_id,
                    device.components,
@@ -631,26 +631,26 @@ async def async_setup_entry(
                                               
         device_capabilities_for_sensor = broker.get_assigned(device.device_id, "sensor")
 
-        _LOGGER.warning(
+        _LOGGER.debug(
                   "NB device_capabilities_for_sensor: %s",
                    device_capabilities_for_sensor,
         )     
                               
         for component in device.components:
-            _LOGGER.warning(
+            _LOGGER.debug(
                   "NB component loop: %s: %s ",
                    device.device_id,
                    component,
             )                        
             for capability in device.components[component]:
-                _LOGGER.warning(
+                _LOGGER.debug(
                   "NB capability loop: %s: %s : %s ",
                    device.device_id,
                    component,
                    capability,
                 )                
                 if capability not in device_capabilities_for_sensor:
-                    _LOGGER.warning(
+                    _LOGGER.debug(
                         "NB capability not found: %s: %s : %s ",
                         device.device_id,
                         component,
@@ -739,7 +739,7 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
         self._component = component
         self._attribute = attribute
                     
-        _LOGGER.warning(
+        _LOGGER.debug(
                   "NB def __init__ device: %s component: %s %s ",
                    device.device_id,
                    component,
@@ -778,7 +778,7 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
                 .value
             )
             
-        _LOGGER.warning(
+        _LOGGER.debug(
                   "NB Return the value for attribute: %s : %s ",
                    self._attr_name,
                    value,

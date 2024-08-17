@@ -6,7 +6,8 @@ import logging
 from collections.abc import Sequence
 from typing import Any
 
-from pysmartthings import Capability
+# from pysmartthings import Capability
+from .capability import Capability
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
@@ -15,6 +16,16 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SmartThingsEntity
 from .const import DATA_BROKERS, DOMAIN
+
+from .capability import (
+    ATTRIBUTES,
+    CAPABILITIES,
+    CAPABILITIES_TO_ATTRIBUTES,
+    ATTRIBUTE_ON_VALUES,
+    ATTRIBUTE_OFF_VALUES,
+    Attribute,
+    Capability,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,7 +37,7 @@ async def async_setup_entry(
     """Add switches for a config entry."""
     broker = hass.data[DOMAIN][DATA_BROKERS][config_entry.entry_id]
     
-    _LOGGER.warning(
+    _LOGGER.debug(
                   "NB looking for switches",
     )        
     
@@ -39,7 +50,7 @@ async def async_setup_entry(
     myswitches = []
     
     for device in broker.devices.values():
-        _LOGGER.warning(
+        _LOGGER.debug(
                  "NB first switch device: %s components: %s",
                   device.device_id,
                   device.components,
@@ -47,15 +58,15 @@ async def async_setup_entry(
         if broker.any_assigned(device.device_id, "switch"): 
             components = device.components
             capabilities = device.capabilities
-            _LOGGER.warning(
+            _LOGGER.debug(
                  "NB about to add_entities switch for device : %s com=%s cap= %s",
                   device.device_id,
                   components,
                   capabilities,
             ) 
             if "samsungce.lamp" in capabilities:
-                _LOGGER.warning(
-                  "NB found samsungce.lamp in main section ",
+                _LOGGER.debug(
+                 "NB found samsungce.lamp in main section ",
                 )
                 myswitches.append(SmartThingsSwitch(device,"main", "brightnessLevel"))
             else:                  
@@ -64,7 +75,7 @@ async def async_setup_entry(
     async_add_entities(myswitches)   
 #            
 #        if broker.any_assigned(device.device_id, "samsungce.lamp"): 
-#            _LOGGER.warning(
+#            _LOGGER.debug(
 #                  "NB found any_assigned samsungce.lamp ",
 #            )        
 #            async_add_entities(SmartThingsSwitch(device,"main", "switch"))    
@@ -78,7 +89,7 @@ async def async_setup_entry(
                 
             capability = device.components[component]
             
-            _LOGGER.warning(
+            _LOGGER.debug(
                   "NB switch component: %s capability : %s ",
                   component,
                   capability,
@@ -86,7 +97,7 @@ async def async_setup_entry(
             
             if "samsungce.lamp" in capability:
                 switches.append(SmartThingsSwitch(device, component, "brightnessLevel"))
-                _LOGGER.warning(
+                _LOGGER.debug(
                   "NB found samsungce.lamp ",
                 )
                 
@@ -98,7 +109,7 @@ async def async_setup_entry(
 def get_capabilities(capabilities: Sequence[str]) -> Sequence[str] | None:
     """Return all capabilities supported if minimum required are present."""
 
-    _LOGGER.warning(
+    _LOGGER.debug(
                   "NB switch get_capabilities: %s ",
                   capabilities,
     )
@@ -106,13 +117,13 @@ def get_capabilities(capabilities: Sequence[str]) -> Sequence[str] | None:
     
     # Must be able to be turned on/off.
     if Capability.switch in capabilities:
-        _LOGGER.warning(
+        _LOGGER.debug(
                   "NB switch found switch in capabilities: %s ",
                   capabilities,
         )
         return [Capability.switch, Capability.energy_meter, Capability.power_meter]
     if Capability.oven_light in capabilities:
-        _LOGGER.warning(
+        _LOGGER.debug(
                   "NB switch found oven_light in capabilities: %s ",
                   capabilities,
         )
@@ -132,6 +143,11 @@ class SmartThingsSwitch(SmartThingsEntity, SwitchEntity):
     @property
     def name(self) -> str:
         """Return the name of the switch."""
+        if self._attribute == "brightnessLevel":
+            switch_name = "Light"
+        else:
+            switch_name = ""
+                
         if self._component == "main":
             return f"{self._device.label} switch"
         return f"{self._device.label} {self._component} switch"
@@ -147,12 +163,13 @@ class SmartThingsSwitch(SmartThingsEntity, SwitchEntity):
         """Turn the switch off."""
         
         if self._attribute == "brightnessLevel":
-            _LOGGER.warning(
+            _LOGGER.debug(
                   "NB switch async_turn_off samsungce.lamp: component = %s attribute: %s ",
                    self._component,
                    self._attribute,                  
             )
-            await self._device.set_brightnesslevel(level="off", set_status=True, component_id=self._component)
+#            await self._device.set_brightnesslevel(level="off", set_status=True, component_id=self._component)
+            await self._device.command(self._component, "samsungce.lamp", "setBrightnessLevel", ["off"] )
         else:                    
             await self._device.switch_off(set_status=True, component_id=self._component)
             
@@ -164,12 +181,13 @@ class SmartThingsSwitch(SmartThingsEntity, SwitchEntity):
         """Turn the switch on."""
         
         if self._attribute == "brightnessLevel":
-            _LOGGER.warning(
+            _LOGGER.debug(
                   "NB switch async_turn_on samsungce.lamp: component = %s attribute: %s ",
                    self._component,
                    self._attribute,                  
             )
-            await self._device.set_brightnesslevel(level="high", set_status=True, component_id=self._component)
+#            await self._device.set_brightnesslevel(level="high", set_status=True, component_id=self._component)
+            await self._device.command(self._component, "samsungce.lamp", "setBrightnessLevel", ["high"] )
         else:            
             await self._device.switch_on(set_status=True, component_id=self._component)
             
@@ -181,7 +199,7 @@ class SmartThingsSwitch(SmartThingsEntity, SwitchEntity):
     @property
     def is_on(self) -> bool:
         """Return true if switch is on."""
-        _LOGGER.warning(
+        _LOGGER.debug(
                   "NB switch is_on first: component = %s attrib: %s status: %s",
                    self._component,
                    self._attribute,
@@ -193,8 +211,8 @@ class SmartThingsSwitch(SmartThingsEntity, SwitchEntity):
             
                 value = self._device.status.attributes[self._attribute].value
 
-                _LOGGER.warning(
-                     "NB switch is_on main value = %s",
+                _LOGGER.debug(
+                     "NB switch is_on brightnessLevel value = %s",
                      value,
                 )              
                 if value == "high":    
@@ -209,7 +227,7 @@ class SmartThingsSwitch(SmartThingsEntity, SwitchEntity):
             .attributes[self._attribute]
             .value
         )
-        _LOGGER.warning(
+        _LOGGER.debug(
                   "NB switch is_on second: component = %s status: %s : %s: %s",
                    self._component,
                    self._device.status.switch,
