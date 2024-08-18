@@ -40,6 +40,7 @@ PLATFORMS = [
     Platform.LOCK,
     Platform.COVER,
     Platform.SWITCH,
+    Platform.NUMBER,
     Platform.BINARY_SENSOR,
     Platform.SENSOR,
     Platform.SCENE,
