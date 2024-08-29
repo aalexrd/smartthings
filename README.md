@@ -18,8 +18,9 @@ __A Home Assistant custom Integration for SmartThings.__
 - Configure the Smartthings integration the same as for the core integration (https://www.home-assistant.io/integrations/smartthings) 
 
 ## __𝐅𝐞𝐚𝐭𝐮𝐫𝐞𝐬__
-- Fixed missing sensors & controls 
+- Added some missing sensors & controls 
 - More capabilities are available than core Smartthings integration
 - Only tested with Samsung Fridge Family Hub Model 24K_REF_LCD_FHUB9.0, Samsung Dishwasher Model DA_DW_TP1_21_COMMON and Samsung Wall Oven Model LCD_S905D3_OV_P_US_23K. May not work with other devices.
+- Integration may add unused sensors/controls for your device. Simply disable the unwanted ones in Home Assistant.
 
 Based on: https://github.com/contemplator1998/smartthings
