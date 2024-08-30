@@ -10,8 +10,8 @@ import asyncio
 
 from typing import Literal
 
-from pysmartthings import Attribute, Capability
-from pysmartthings.device import DeviceEntity
+from . import Attribute, Capability
+from pysmartthings.device import DeviceEntity, Command
 
 from homeassistant.components.number import NumberEntity, NumberMode
 
@@ -35,6 +35,11 @@ from homeassistant.const import (
     UnitOfVolume,
 )
 
+UNITS = {
+    "C": UnitOfTemperature.CELSIUS,
+    "F": UnitOfTemperature.FAHRENHEIT,
+}
+
 Map = namedtuple(
     "map",
     "attribute command name unit_of_measurement icon min_value max_value step mode",
@@ -48,7 +53,7 @@ CAPABILITY_TO_NUMBER = {
             Attribute.cooling_setpoint,
             "set_cooling_setpoint",
             "Cooling Setpoint",
-            UnitOfTemperature.FAHRENHEIT,
+            None,
             "mdi:thermometer",
             -8,
             500,
@@ -228,12 +233,18 @@ class SmartThingsNumber(SmartThingsEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set the number value."""
         _LOGGER.debug(
-                  "NB number set_native_value device: %s command: %s value: %s ",
+                  "NB number set_native_value device: %s component: %s attribute: %s command: %s value: %s ",
                   self._device.device_id,
+                  self._component,
+                  self._attribute,
                   self._command,
                   value,
         )                  
-        await getattr(self._device, self._command)(int(value), set_status=True)
+#        await getattr(self._device, self._command)(int(value), set_status=True)
+
+# Defined in device.py async def command(self, component_id: str, capability, command, args=None) -> bool:        
+        await self._device.command(self._component, "thermostatCoolingSetpoint", "setCoolingSetpoint", [int(value)] )
+        
         self.async_write_ha_state()
 
     @property
@@ -302,9 +313,23 @@ class SmartThingsNumber(SmartThingsEntity, NumberEntity):
     @property
     def native_unit_of_measurement(self) -> str | None:
         """Return unit of measurement"""
-        unit = self._device.status.attributes[self._attribute].unit
-#        return UNIT_MAP.get(unit) if unit else self._attr_native_unit_of_measurement
-        return None
+#        unit = self._device.status.attributes[self._attribute].unit
+        if self._component == "main":
+            unit = self._device.status.attributes[self._attribute].unit
+        else:
+            unit = (
+                self._device.status.components[self._component]
+                .attributes[self._attribute]
+                .unit
+            )
+
+        _LOGGER.debug(
+                  "NB Return the number native_unit_of_measurement: %s : %s : %s ",
+                   unit,
+                   self._component,
+                   self._attr_name,
+        )                               
+        return UNITS.get(unit, unit) if unit else self._attr_native_unit_of_measurement
 
     @property
     def mode(self) -> Literal["auto", "slider", "box"]:
@@ -312,124 +337,3 @@ class SmartThingsNumber(SmartThingsEntity, NumberEntity):
         return self._attr_mode
 
 
-class SamsungOcfTemperatureNumber(SmartThingsEntity, NumberEntity):
-    """Define a Samsung OCF Number."""
-
-    execute_state = 0
-    min_value_state = 0
-    max_value_state = 0
-    unit_state = ""
-    init_bool = False
-
-    def __init__(
-        self,
-        device: DeviceEntity,
-        name: str,
-        page: str,
-        mode: str | None,
-    ) -> None:
-        """Init the class."""
-        super().__init__(device)
-        self._name = name
-        self._page = page
-        self._attr_mode = mode
-
-    def startup(self):
-        """Make sure that OCF page visits mode on startup"""
-        tasks = []
-        tasks.append(self._device.execute(self._page))
-        asyncio.gather(*tasks)
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Set the number value."""
-        result = await self._device.execute(self._page, {"temperature": value})
-        if result:
-            self._device.status.update_attribute_value(
-                "data",
-                {
-                    "payload": {
-                        "temperature": value,
-                        "range": [self.min_value_state, self.max_value_state],
-                        "units": self.unit_state,
-                    }
-                },
-            )
-            self.execute_state = value
-        self.async_write_ha_state()
-
-    @property
-    def name(self) -> str:
-        """Return the name of the number."""
-        return f"{self._device.label} {self._name}"
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID."""
-        _unique_id = self._name.lower().replace(" ", "_")
-        return f"{self._device.device_id}.{_unique_id}"
-
-    @property
-    def native_value(self) -> float:
-        """Return  Value."""
-        if not self.init_bool:
-            self.startup()
-        if self._device.status.attributes[Attribute.data].data["href"] == self._page:
-            self.init_bool = True
-            self.execute_state = int(
-                self._device.status.attributes[Attribute.data].value["payload"][
-                    "temperature"
-                ]
-            )
-        return int(self.execute_state)
-
-    @property
-    def icon(self) -> str:
-        """Return Icon."""
-        return "mdi:thermometer-lines"
-
-    @property
-    def native_min_value(self) -> float:
-        """Define mimimum level."""
-        if self._device.status.attributes[Attribute.data].data["href"] == self._page:
-            self.min_value_state = int(
-                self._device.status.attributes[Attribute.data].value["payload"][
-                    "range"
-                ][0]
-            )
-        return self.min_value_state
-
-    @property
-    def native_max_value(self) -> float:
-        """Define maximum level."""
-        if self._device.status.attributes[Attribute.data].data["href"] == self._page:
-            self.max_value_state = int(
-                self._device.status.attributes[Attribute.data].value["payload"][
-                    "range"
-                ][1]
-            )
-        return self.max_value_state
-
-    @property
-    def native_step(self) -> float:
-        """Define stepping size"""
-        return 1
-
-    @property
-    def native_unit_of_measurement(self) -> str | None:
-        """Return unit of measurement"""
-        if self._device.status.attributes[Attribute.data].data["href"] == self._page:
-            self.unit_state = self._device.status.attributes[Attribute.data].value[
-                "payload"
-            ]["units"]
-#        return UNIT_MAP.get(self.unit_state) if self.unit_state else None
-        return None        
-
-    @property
-    def mode(self) -> Literal["auto", "slider", "box"]:
-        """Return representation mode"""
-        return self._attr_mode
-
-    @property
-    def device_class(self) -> str | None:
-        """Return Device Class."""
-        return SensorDeviceClass.TEMPERATURE

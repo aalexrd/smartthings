@@ -160,6 +160,7 @@ CAPABILITIES_TO_ATTRIBUTES = {
     "windowShade": ["windowShade"],
     "windowShadeLevel": ["shadeLevel"],
     "windowShadePreset": ["presetPosition"],
+    "samsungce.waterConsumptionReport": ["waterConsumption"],
 }
 CAPABILITIES = list(CAPABILITIES_TO_ATTRIBUTES)
 ATTRIBUTES = {
@@ -260,6 +261,7 @@ class Capability:
     window_shade = "windowShade"
     window_shade_level = "windowShadeLevel"
     window_shade_preset = "windowShadePreset"
+    water_consumption_report = "samsungce.waterConsumptionReport"
 
 
 class Attribute:
@@ -396,6 +398,7 @@ class Attribute:
     water_filter_status = "waterFilterStatus"
     water_filter_usage =  "waterFilterUsage"
     window_shade = "windowShade"
+    water_consumption = "waterConsumption"
 
 
 ATTRIBUTE_ON_VALUES = {

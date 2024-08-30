@@ -322,7 +322,7 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
         Map(Attribute.operation_time, "Cook Time", None, None, None, None),                
     ],
     Capability.oven_setpoint: [
-        Map(Attribute.oven_setpoint, "Oven Set Point", UnitOfTemperature.FAHRENHEIT, SensorDeviceClass.TEMPERATURE, None, None)
+        Map(Attribute.oven_setpoint, "Oven Set Point", None, None, None, None)
     ],
 
     Capability.door_state: [
@@ -331,7 +331,7 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
     
     Capability.oven_meat_probe: [
         Map(Attribute.temperature_set_point, "Probe Temperature Setpoint", None, SensorDeviceClass.TEMPERATURE, None, None),
-        Map(Attribute.temperature, "Probe Temperature", None, SensorDeviceClass.TEMPERATURE, None, None),
+        Map(Attribute.temperature, "Probe Temperature", None, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, None),
         Map(Attribute.status, "Probe Status", None, None, None, None),
     ],                      
 
@@ -432,21 +432,23 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
     Capability.smoke_detector: [
         Map(Attribute.smoke, "Smoke Detector", None, None, None, None)
     ],
+    
     Capability.temperature_measurement: [
         Map(
             Attribute.temperature,
             "Temperature Measurement",
-            UnitOfTemperature.FAHRENHEIT,
+            None,
             SensorDeviceClass.TEMPERATURE,
             SensorStateClass.MEASUREMENT,
             None,
         )
-    ],
+    ],    
+    
     Capability.thermostat_cooling_setpoint: [
         Map(
             Attribute.cooling_setpoint,
             "Thermostat Cooling Setpoint",
-            UnitOfTemperature.FAHRENHEIT,
+            None,
             SensorDeviceClass.TEMPERATURE,
             None,
             None,
@@ -562,7 +564,18 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
     Capability.water_filter: [
         Map(Attribute.water_filter_status, "Water Filter Status", None, None, None, None),
         Map(Attribute.water_filter_usage, "Water Filter Usage", PERCENTAGE, None, SensorStateClass.MEASUREMENT, None),
-    ],    
+    ],
+    
+    Capability.water_consumption_report: [
+        Map(
+            Attribute.water_consumption,
+            "Water Consumption",
+            None,
+            None,
+            None,
+            None,
+        )
+    ],        
 }
 
 
@@ -612,6 +625,7 @@ async def async_setup_entry(
                     ]
                 )
             else:
+            
                 maps = CAPABILITY_TO_SENSORS[capability]
                 entities.extend(
                     [
@@ -779,7 +793,8 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
             )
             
         _LOGGER.debug(
-                  "NB Return the value for attribute: %s : %s ",
+                  "NB Return the sensor value for component %s attribute: %s = %s ",
+                   self._component,
                    self._attr_name,
                    value,
         )                                    
@@ -792,9 +807,19 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
     @property
     def native_unit_of_measurement(self):
         """Return the unit this state is expressed in."""
-        unit = self._device.status.attributes[self._attribute].unit
+#        unit = self._device.status.attributes[self._attribute].unit
+
+        if self._component == "main":
+            unit = self._device.status.attributes[self._attribute].unit
+        else:
+            unit = (
+                self._device.status.components[self._component]
+                .attributes[self._attribute]
+                .unit
+            )
+
         _LOGGER.debug(
-                  "NB Return the native_unit_of_measurement: %s : %s : %s ",
+                  "NB Return the sensor native_unit_of_measurement: %s : %s : %s ",
                    unit,
                    self._component,
                    self._attr_name,
