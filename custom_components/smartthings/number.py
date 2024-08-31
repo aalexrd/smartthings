@@ -55,7 +55,7 @@ CAPABILITY_TO_NUMBER = {
             "Cooling Setpoint",
             None,
             "mdi:thermometer",
-            -8,
+            -22,
             500,
             1,
             NumberMode.AUTO,
@@ -123,64 +123,25 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
                 
                 maps = CAPABILITY_TO_NUMBER[capability]
-                
-                if component == "cooler":
-                    numbers.extend(
-                        [
-	                    SmartThingsNumber(
-	                        device,
-	                        component,
-	                        m.attribute,
-	                        m.command,
-	                        m.name,
-	                        m.unit_of_measurement,
-	                        m.icon,
-	                        34,
-	                        44,
-	                        m.step,
-	                        m.mode,
-	                    )
-                            for m in maps
-                        ]
-                    )    
-                elif component == "freezer":
-                    numbers.extend(
-                        [
-	                    SmartThingsNumber(
-	                        device,
-	                        component,
-	                        m.attribute,
-	                        m.command,
-	                        m.name,
-	                        m.unit_of_measurement,
-	                        m.icon,
-	                        -8,
-	                        5,
-	                        m.step,
-	                        m.mode,
-	                    )
-                            for m in maps
-                        ]
-                    )    
-                else:                                            
-                    numbers.extend(
-                        [
-	                     SmartThingsNumber(
-	                        device,
-	                        component,
-	                        m.attribute,
-	                        m.command,
-	                        m.name,
-	                        m.unit_of_measurement,
-	                        m.icon,
-	                        m.min_value,
-	                        m.max_value,
-	                        m.step,
-	                        m.mode,
-	                    )
-                            for m in maps
-                        ]
-                    )    
+                    
+                numbers.extend(
+                    [
+                         SmartThingsNumber(
+                            device,
+                            component,
+                            m.attribute,
+                            m.command,
+                            m.name,
+                            m.unit_of_measurement,
+                            m.icon,
+                            m.min_value,
+                            m.max_value,
+                            m.step,
+                            m.mode,
+                        )
+                        for m in maps
+                    ]
+                )    
                             
 
     async_add_entities(numbers)
@@ -298,11 +259,57 @@ class SmartThingsNumber(SmartThingsEntity, NumberEntity):
     @property
     def native_min_value(self) -> float:
         """Define mimimum level."""
+# Max and min are hardcoded for Family Hub Fridge/Freezer because the actual ranges are stored in
+# a separate capability called custom.thermostatSetpointControl instead of where they should be
+# under temperatureMeasurement -> range
+       
+        if self._component == "main":
+            unit = self._device.status.attributes[self._attribute].unit
+        else:
+            unit = (
+                self._device.status.components[self._component]
+                .attributes[self._attribute]
+                .unit
+            )
+        if self._component == "cooler": 
+            if unit == "F":
+                return 34
+            elif unit == "C":
+                return 1
+        elif self._component == "freezer":
+            if unit == "F":
+                return -8
+            elif unit == "C":
+                return -22        
+                                
         return self._attr_native_min_value
 
     @property
     def native_max_value(self) -> float:
         """Define maximum level."""
+# Max and min are hardcoded for Family Hub Fridge/Freezer because the actual ranges are stored in
+# a separate capability called custom.thermostatSetpointControl instead of where they should be
+# under temperatureMeasurement -> range
+        
+        if self._component == "main":
+            unit = self._device.status.attributes[self._attribute].unit
+        else:
+            unit = (
+                self._device.status.components[self._component]
+                .attributes[self._attribute]
+                .unit
+            )
+        if self._component == "cooler": 
+            if unit == "F":
+                return 44
+            elif unit == "C":
+                return 6
+        elif self._component == "freezer":
+            if unit == "F":
+                return 5
+            elif unit == "C":
+                return -15        
+                                
         return self._attr_native_max_value
 
     @property
