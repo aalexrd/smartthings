@@ -15,7 +15,7 @@ __A Home Assistant custom Integration for SmartThings.__
 - Download the custom SmartThings integration from the HACS custom repository shown above
 - Restart Home Assistant
 - Install the Smartthings integration using Settings -> Devices and Services -> Add Integration
-- Configure the Smartthings integration the same as for the core integration (https://www.home-assistant.io/integrations/smartthings) 
+- Configure the Smartthings integration the same as for the core integration. You will need a PAT from https://account.smartthings.com/tokens. See https://www.home-assistant.io/integrations/smartthings for full instructions. 
 
 ## __𝐅𝐞𝐚𝐭𝐮𝐫𝐞𝐬__
 - Added some missing sensors & controls 
