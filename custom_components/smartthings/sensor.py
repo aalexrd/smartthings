@@ -31,6 +31,8 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
+from homeassistant.helpers import entity_platform
+import voluptuous as vol
 
 from . import SmartThingsEntity
 
@@ -44,6 +46,8 @@ Map = namedtuple(
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+SERVICE_COMMAND = "send_command"
 
 CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
     Capability.activity_lighting_mode: [
@@ -725,7 +729,23 @@ async def async_setup_entry(
                 )
 
     async_add_entities(entities)
-
+    
+    platform = entity_platform.async_get_current_platform()
+#    platform.async_register_entity_service(SERVICE_COMMAND, None, "async_send_command") 
+    
+    platform.async_register_entity_service(
+        SERVICE_COMMAND,
+        {
+            vol.Required("command"): vol.Coerce(str),
+#            vol.Required("params"): vol.Coerce(str),
+            vol.Required("capability"): vol.Coerce(str),
+            vol.Required("action"): vol.Coerce(str), 
+        },
+        "async_send_command",
+    )    
+    
+#  vol.Required(ATTR_COMMAND): vol.All(cv.ensure_list, [cv.string]),  
+       
 
 def get_capabilities(capabilities: Sequence[str]) -> Sequence[str] | None:
     """Return all capabilities supported if minimum required are present. Called from __init__py"""
@@ -827,6 +847,25 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
         return UNITS.get(unit, unit) if unit else self._default_unit
 
 
+    async def async_send_command(
+        self,
+        command: str,
+#        params: dict[str, Any] | list[Any] | None = None,
+        capability: str,
+        action: str,
+        **kwargs: Any,
+    ) -> None:        
+        """Send a command"""
+        _LOGGER.debug(
+                  "NB switch send_my_command: %s capability: %s action: %s kwargs: %s",
+                  command,
+                  capability,
+                  action,
+                  kwargs,
+        )
+     
+        await self._device.command(self._component, capability, command, [action] )     
+
 class SmartThingsThreeAxisSensor(SmartThingsEntity, SensorEntity):
     """Define a SmartThings Three Axis Sensor."""
 
@@ -912,3 +951,4 @@ class SmartThingsPowerConsumptionSensor(SmartThingsEntity, SensorEntity):
                     state_attributes[attribute] = value
             return state_attributes
         return None
+

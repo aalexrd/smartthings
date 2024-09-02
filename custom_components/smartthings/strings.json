@@ -31,4 +31,22 @@
       "webhook_error": "SmartThings could not validate the webhook URL. Please ensure the webhook URL is reachable from the internet and try again."
     }
   }
+  "services": {
+    "send_command": {
+      "name": "Send Smartthings command",
+      "description": "Sends a command to the Smartthings API ",
+      "fields": {
+        "command": {
+          "name": "Command",
+          "description": "The command to send."
+        "capability": {
+          "name": "Capability",
+          "description": "The capability for command to act upon."  
+        "action": {
+          "name": "Action",
+          "description": "The action to take."                       
+        }
+      },
+    }
+  }
 }

@@ -39,6 +39,7 @@ PLATFORMS = [
     Platform.LIGHT,
     Platform.LOCK,
     Platform.COVER,
+#    Platform.BUTTON, Remove button because it causes all waterFilter attributes to show under button
     Platform.SWITCH,
     Platform.NUMBER,
     Platform.BINARY_SENSOR,

@@ -103,8 +103,7 @@ async def async_setup_entry(
                 
 
                  
-    async_add_entities(switches)
-
+    async_add_entities(switches)    
 
 def get_capabilities(capabilities: Sequence[str]) -> Sequence[str] | None:
     """Return all capabilities supported if minimum required are present."""
@@ -238,4 +237,7 @@ class SmartThingsSwitch(SmartThingsEntity, SwitchEntity):
         if self._device.status.components[self._component].attributes[self._attribute].value == "high":    
             return True            
             
-        return self._device.status.components[self._component].switch         
+        return self._device.status.components[self._component].switch 
+        
+
+                    
