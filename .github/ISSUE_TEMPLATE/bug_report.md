@@ -24,7 +24,7 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **Device information (manufacturer, model):**
- - Device: [e.g. Samsung Family Hub]
+ - Device: [e.g. Samsung Family Hub Model: xyz]
  - Go to https://my.smartthings.com/advanced and go to Control and View Your Devices. 
  - Select the device that is having the issue. 
  - Use the "Export Data" button for the Attributes and save as a CSV.
