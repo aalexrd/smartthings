@@ -335,7 +335,7 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
     
     Capability.oven_meat_probe: [
         Map(Attribute.temperature_set_point, "Probe Temperature Setpoint", None, SensorDeviceClass.TEMPERATURE, None, None),
-        Map(Attribute.temperature, "Probe Temperature", None, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, None),
+#        Map(Attribute.temperature, "Probe Temperature", None, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, None),
         Map(Attribute.status, "Probe Status", None, None, None, None),
     ],                      
 
@@ -579,7 +579,18 @@ CAPABILITY_TO_SENSORS: dict[str, list[Map]] = {
             None,
             None,
         )
-    ],        
+    ],
+        
+    Capability.power_freeze: [
+        Map(
+            Attribute.activated,
+            "Power Freeze",
+            None,
+            None,
+            None,
+            None,
+        )
+    ],                            
 }
 
 
@@ -739,7 +750,7 @@ async def async_setup_entry(
             vol.Required("command"): vol.Coerce(str),
 #            vol.Required("params"): vol.Coerce(str),
             vol.Required("capability"): vol.Coerce(str),
-            vol.Required("action"): vol.Coerce(str), 
+            vol.Optional("action"): vol.Coerce(str), 
         },
         "async_send_command",
     )    
@@ -781,16 +792,10 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
         )                
         if self._component == "main":
             self._attr_name = f"{device.label} {name}"
-            if name == "Probe Temperature":
-                self._attr_unique_id = f"{device.device_id}.{"probe"}.{attribute}"
-            else:    
-                self._attr_unique_id = f"{device.device_id}.{attribute}"
+            self._attr_unique_id = f"{device.device_id}.{attribute}"
         else:            
             self._attr_name = f"{device.label} {component} {name}"
-            if name == "Probe Temperature":
-                self._attr_unique_id = f"{device.device_id}.{component}.{"probe"}.{attribute}"
-            else:    
-                self._attr_unique_id = f"{device.device_id}.{component}.{attribute}"
+            self._attr_unique_id = f"{device.device_id}.{component}.{attribute}"
         self._attr_device_class = device_class
         self._default_unit = default_unit
         self._attr_state_class = state_class
@@ -852,7 +857,7 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
         command: str,
 #        params: dict[str, Any] | list[Any] | None = None,
         capability: str,
-        action: str,
+        action: str | None = None,
         **kwargs: Any,
     ) -> None:        
         """Send a command"""
@@ -863,8 +868,10 @@ class SmartThingsSensor(SmartThingsEntity, SensorEntity):
                   action,
                   kwargs,
         )
-     
-        await self._device.command(self._component, capability, command, [action] )     
+        if action == None:
+            await self._device.command(self._component, capability, command)
+        else:    
+            await self._device.command(self._component, capability, command, [action] )            
 
 class SmartThingsThreeAxisSensor(SmartThingsEntity, SensorEntity):
     """Define a SmartThings Three Axis Sensor."""

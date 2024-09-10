@@ -17,7 +17,7 @@ send_command:
       selector:
         object:  
     action:
-      required: true
+      required: false
       example: "stop"
       selector:
         object:              
