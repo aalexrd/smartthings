@@ -13,6 +13,7 @@ from pysmartapp import Dispatcher, SmartAppManager
 from pysmartapp.const import SETTINGS_APP_ID
 from pysmartthings import (
     APP_TYPE_WEBHOOK,
+    CAPABILITIES,
     CLASSIFICATION_AUTOMATION,
     App,
     AppEntity,
@@ -24,9 +25,6 @@ from pysmartthings import (
     Subscription,
     SubscriptionEntity,
 )
-
-from .capability import CAPABILITIES
-
 
 from homeassistant.components import cloud, webhook
 from homeassistant.const import CONF_WEBHOOK_ID
@@ -361,8 +359,6 @@ async def smartapp_sync_subscriptions(
     capabilities = set()
     for device in devices:
         capabilities.update(device.capabilities)
-        for component in device.components:
-            capabilities.update(device.components[component])
     # Remove items not defined in the library
     capabilities.intersection_update(CAPABILITIES)
     # Remove unused capabilities

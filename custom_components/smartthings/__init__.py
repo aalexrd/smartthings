@@ -1,4 +1,5 @@
 """Support for SmartThings Cloud."""
+
 from __future__ import annotations
 
 import asyncio
@@ -9,19 +10,7 @@ import logging
 
 from aiohttp.client_exceptions import ClientConnectionError, ClientResponseError
 from pysmartapp.event import EVENT_TYPE_DEVICE
-# from pysmartthings import Attribute, Capability, SmartThings
-from pysmartthings import SmartThings
-from pysmartthings.device import DeviceEntity
-
-from .capability import (
-    ATTRIBUTES,
-    CAPABILITIES,
-    CAPABILITIES_TO_ATTRIBUTES,
-    ATTRIBUTE_ON_VALUES,
-    ATTRIBUTE_OFF_VALUES,
-    Attribute,
-    Capability,
-)
+from pysmartthings import Attribute, Capability, SmartThings
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import CONF_ACCESS_TOKEN, CONF_CLIENT_ID, CONF_CLIENT_SECRET
@@ -29,12 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_loaded_integration
@@ -179,7 +163,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             installed_app.installed_app_id,
             devices,
         )
-        
+
         # Setup device broker
         with async_pause_setup(hass, SetupPhases.WAIT_IMPORT_PLATFORMS):
             # DeviceBroker has a side effect of importing platform
@@ -189,7 +173,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 DeviceBroker, hass, entry, token, smart_app, devices, scenes
             )
         broker.connect()
-        hass.data[DOMAIN][DATA_BROKERS][entry.entry_id] = broker        
+        hass.data[DOMAIN][DATA_BROKERS][entry.entry_id] = broker
 
     except ClientResponseError as ex:
         if ex.status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
@@ -443,42 +427,3 @@ class DeviceBroker:
             updated_devices.add(device.device_id)
 
         async_dispatcher_send(self._hass, SIGNAL_SMARTTHINGS_UPDATE, updated_devices)
-
-
-class SmartThingsEntity(Entity):
-    """Defines a SmartThings entity."""
-
-    _attr_should_poll = False
-
-    def __init__(self, device: DeviceEntity) -> None:
-        """Initialize the instance."""
-        self._device = device
-        self._dispatcher_remove = None
-        self._attr_name = device.label
-        self._attr_unique_id = device.device_id
-        self._attr_device_info = DeviceInfo(
-            configuration_url="https://account.smartthings.com",
-            identifiers={(DOMAIN, device.device_id)},
-            manufacturer=device.status.ocf_manufacturer_name,
-            model=device.status.ocf_model_number,
-            name=device.label,
-            hw_version=device.status.ocf_hardware_version,
-            sw_version=device.status.ocf_firmware_version,
-        )
-
-    async def async_added_to_hass(self):
-        """Device added to hass."""
-
-        async def async_update_state(devices):
-            """Update device state."""
-            if self._device.device_id in devices:
-                await self.async_update_ha_state(True)
-
-        self._dispatcher_remove = async_dispatcher_connect(
-            self.hass, SIGNAL_SMARTTHINGS_UPDATE, async_update_state
-        )
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Disconnect the device when removed."""
-        if self._dispatcher_remove:
-            self._dispatcher_remove()
